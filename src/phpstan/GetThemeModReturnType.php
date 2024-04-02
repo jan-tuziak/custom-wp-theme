@@ -11,6 +11,7 @@ use PhpParser\Node\Expr\FuncCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\FunctionReflection;
 use PHPStan\Reflection\ParametersAcceptorSelector;
+use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\DynamicFunctionReturnTypeExtension;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\StringType;
@@ -53,20 +54,14 @@ class GetThemeModReturnType implements DynamicFunctionReturnTypeExtension {
 			$functionReflection->getVariants()
 		)->getReturnType();
 
-		if (count($argType->getConstantStrings()) === 0) {
-			return null;
+		if (!$argType instanceof ConstantStringType) {
+			return $defaultType;
 		}
 
-		$returnType = [];
-		foreach ($argType->getConstantStrings() as $constantString) {
-			if (in_array($constantString->getValue(), self::$themeMods, true)) {
-				$returnType[] = new StringType();
-			} else {
-				$returnType[] = $defaultType;
-			}
+		// Return the default value if it is not an Understrap specific theme mod.
+		if (!in_array($argType->getValue(), self::$themeMods, true)) {
+			return $defaultType;
 		}
-		$returnType = TypeCombinator::union(...$returnType);
-
 
 		// Without second argument the default value is false, but can be filtered.
 		$defaultType = new MixedType();
@@ -74,6 +69,6 @@ class GetThemeModReturnType implements DynamicFunctionReturnTypeExtension {
 			$defaultType = $scope->getType($functionCall->getArgs()[1]->value);
 		}
 
-		return TypeCombinator::union($returnType, $defaultType);
+		return TypeCombinator::union(new StringType(), $defaultType);
 	}
 }
